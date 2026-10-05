@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2FA Lab — Painel de Testes</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2129;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #2f81f7;
+  --ok: #3fb950;
+  --err: #f85149;
+  --warn: #d29922;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 0 0 60px;
+}
+header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(13, 17, 23, .92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+h1 { font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+h1 span { color: var(--muted); font-weight: 400; }
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(370px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.card > h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.row > * { flex: 1 1 auto; }
+label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+input, select {
+  width: 100%;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 13px var(--mono);
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+input[type="text"].code { letter-spacing: .35em; text-align: center; font-size: 16px; }
+button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font: 600 12px system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: .12s;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #04101f; }
+button.primary:hover:not(:disabled) { background: #4b95ff; color: #04101f; }
+button.ghost { background: transparent; padding: 5px 8px; font-weight: 500; }
+button.danger { border-color: var(--err); color: var(--err); }
+button.danger:hover:not(:disabled) { background: var(--err); color: #fff; }
+button.sm { padding: 5px 9px; font-size: 11px; }
+.hint { font-size: 11px; color: var(--muted); line-height: 1.45; }
+.hint code, code.inline { background: #0d1117; border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; font: 11px var(--mono); }
+.pill { font: 600 10px/1 system-ui; padding: 4px 8px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.pill.on { color: var(--ok); border-color: var(--ok); }
+.pill.off { color: var(--muted); }
+.divider { height: 1px; background: var(--border); margin: 2px 0; }
+.kv { display: grid; grid-template-columns: 96px 1fr; gap: 6px 10px; font-size: 12px; align-items: start; }
+.kv dt { color: var(--muted); }
+.kv dd { font-family: var(--mono); word-break: break-all; }
+.token { position: relative; }
+.token textarea {
+  width: 100%; min-height: 58px; resize: vertical;
+  background: #0d1117; border: 1px solid var(--border); color: var(--ok);
+  border-radius: 6px; padding: 8px; font: 11px/1.4 var(--mono); word-break: break-all;
+}
+.claims { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 10px; font: 11px/1.5 var(--mono); color: var(--muted); max-height: 150px; overflow: auto; }
+.claims b { color: var(--text); font-weight: 600; }
+.qr { text-align: center; padding: 10px; background: #fff; border-radius: 8px; display: inline-block; }
+.qr img { display: block; width: 168px; height: 168px; image-rendering: pixelated; }
+.totp-face { display: flex; gap: 12px; align-items: center; justify-content: center; padding: 12px; background: #0d1117; border: 1px solid var(--border); border-radius: 8px; }
+.totp-code { font: 700 30px var(--mono); letter-spacing: .18em; color: var(--ok); }
+.totp-meta { text-align: center; font-size: 11px; color: var(--muted); margin-top: 4px; }
+.bar { height: 3px; background: #21262d; border-radius: 3px; overflow: hidden; width: 96px; }
+.bar > i { display: block; height: 100%; background: var(--ok); transition: width 1s linear; }
+.codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.codes button { font: 12px var(--mono); padding: 6px; }
+.inbox { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow: auto; }
+.msg { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--panel-2); display: flex; flex-direction: column; gap: 6px; }
+.msg-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.msg-subj { font-size: 12px; font-weight: 600; }
+.msg-meta { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.msg pre { font: 11px/1.45 var(--mono); color: var(--muted); white-space: pre-wrap; max-height: 108px; overflow: auto; margin: 0; }
+.chip {
+  align-self: flex-start; font: 700 17px var(--mono); letter-spacing: .22em;
+  background: rgba(63, 185, 80, .12); color: var(--ok);
+  border: 1px solid var(--ok); border-radius: 6px; padding: 6px 12px 6px 16px; cursor: pointer;
+}
+.chip:hover { background: var(--ok); color: #04101f; }
+.chip.none { border-color: var(--border); color: var(--muted); background: transparent; cursor: default; letter-spacing: .05em; font-size: 12px; }
+.empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px; }
+#log { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow: auto; font: 11px var(--mono); }
+.log-item { display: flex; gap: 8px; padding: 5px 7px; border-radius: 5px; background: var(--panel-2); border-left: 3px solid var(--border); align-items: baseline; }
+.log-item.s2 { border-left-color: var(--ok); }
+.log-item.s4 { border-left-color: var(--ok); }
+.log-item.s5 { border-left-color: var(--err); }
+.log-time { color: var(--muted); }
+.log-method { font-weight: 700; color: var(--accent); }
+.log-path { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-body { color: var(--muted); font-size: 10px; }
+#toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toast { background: var(--panel); border: 1px var(--border) solid; border-left-width: 3px; border-radius: 7px; padding: 9px 14px; font-size: 12px; max-width: 340px; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); animation: slide .18s ease-out; }
+.toast.ok { border-left-color: var(--ok); }
+.toast.err { border-left-color: var(--err); }
+.toast.info { border-left-color: var(--accent); }
+@keyframes slide { from { transform: translateX(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+.note { border-left: 3px solid var(--warn); background: rgba(210, 153, 34, .08); padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 11px; color: var(--muted); }
+.warnbox { border-color: var(--err); background: rgba(248, 81, 73, .07); }
+.flex-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.wrap { flex-wrap: wrap; }
+input.w-lg { flex: 2 1 200px; }
+label.inline-label { display: flex; align-items: center; gap: 6px; text-transform: none; font-size: 12px; color: var(--text); cursor: pointer; }
+label.inline-label input { width: auto; margin: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>2FA Lab <span>— painel de testes</span></h1>
+  <div class="row" style="flex: 0 1 auto; align-items: center; gap: 10px;">
+    <div style="min-width: 190px;">
+      <label for="cfg-base">Prefixo da API</label>
+      <input id="cfg-base" type="text" value="/auth/auth">
+    </div>
+    <div style="min-width: 150px;">
+      <label for="cfg-mail">Mailpit (UI)</label>
+      <input id="cfg-mail" type="text" value="http://localhost:8025">
+    </div>
+    <button id="btn-health" class="sm">Testar conexão</button>
+    <a id="lnk-docs" href="/api/docs" target="_blank" style="color: var(--accent); font-size: 12px;">Swagger ↗</a>
+  </div>
+</header>
+
+<main>
+
+<section class="card">
+  <h2>Sessão <span id="pill-session" class="pill off">sem token</span></h2>
+  <div class="body">
+    <div class="flex-between">
+      <span class="hint">Tokens guardados em localStorage — a página pode ser recarregada sem perder a sessão.</span>
+      <button class="ghost sm danger" id="btn-clear">Limpar</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="token">
+      <div class="flex-between" style="margin-bottom:5px;">
+        <label style="margin:0;">accessToken <span style="color:var(--ok)">· 15m · Bearer</span></label>
+        <button class="ghost sm" data-copy="ta-access">copiar</button>
+      </div>
+      <textarea id="ta-access" readonly placeholder="nenhum access token"></textarea>
+    </div>
+
+    <div class="token">
+      <div class="flex-between" style="margin-bottom:5px;">
+        <label style="margin:0;">mfaToken <span style="color:var(--warn)">· 5m · só no body</span></label>
+        <button class="ghost sm" data-copy="ta-mfa">copiar</button>
+      </div>
+      <textarea id="ta-mfa" readonly placeholder="nenhum mfa token"></textarea>
+    </div>
+
+    <div>
+      <label>Payload decodificado do accessToken</label>
+      <div class="claims" id="claims-access">—</div>
+    </div>
+
+    <div>
+      <label>Payload decodificado do mfaToken</label>
+      <div class="claims" id="claims-mfa">—</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Conta</h2>
+  <div class="body">
+    <div class="note" id="note-pwd">Senha precisa ter 8–72 chars, com maiúscula, minúscula, número e símbolo.</div>
+    <div class="row">
+      <div class="w-lg"><label for="f-email">E-mail</label><input id="f-email" type="text" value="teste@2fa.local" autocomplete="off"></div>
+      <div><label for="f-pass">Senha</label><input id="f-pass" type="text" value="Senha@123" autocomplete="off"></div>
+    </div>
+    <div class="row">
+      <button class="primary" id="btn-register">Registrar</button>
+      <button id="btn-login">Login</button>
+      <button id="btn-me">GET /me</button>
+    </div>
+    <div id="user-box">
+      <label>Usuário autenticado</label>
+      <div class="claims" id="user-info">—</div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>TOTP <span id="pill-totp" class="pill off">inativo</span></h2>
+  <div class="body">
+    <div class="note warnbox">Cada chamada a <code class="inline">setup</code> gera um segredo novo e descarta o anterior. Use o segredo mais recente.</div>
+    <button id="btn-setup">Gerar segredo TOTP (GET /mfa/setup)</button>
+
+    <div id="totp-result" style="display:none; flex-direction:column; gap:12px;">
+      <div class="flex-between">
+        <div class="qr"><img id="qr-img" alt="QR Code"></div>
+        <div class="totp-face" style="flex:1; flex-direction:column; gap:6px;">
+          <div class="totp-code" id="totp-live">------</div>
+          <div class="bar"><i id="totp-bar" style="width:100%"></i></div>
+          <div class="totp-meta" id="totp-meta">calculando…</div>
+        </div>
+      </div>
+      <div>
+        <div class="flex-between" style="margin-bottom:4px;"><label style="margin:0;">otpauthUrl</label><button class="ghost sm" data-copy="tp-otpauth">copiar</button></div>
+        <textarea id="tp-otpauth" readonly style="min-height:44px;"></textarea>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div>
+        <label for="f-enable-code">Código TOTP</label>
+        <input id="f-enable-code" class="code" type="text" maxlength="6" placeholder="000000" inputmode="numeric">
+      </div>
+      <button id="btn-fill-totp">usar atual</button>
+      <button class="primary" id="btn-enable-mfa">Ativar MFA</button>
+    </div>
+
+    <div id="recovery-box" style="display:none;">
+      <div class="flex-between" style="margin-bottom:6px;">
+        <label style="margin:0;">Recovery codes (exibidos uma única vez)</label>
+        <button class="ghost sm" id="btn-copy-recovery">copiar todos</button>
+      </div>
+      <div class="codes" id="recovery-codes"></div>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Email OTP</h2>
+  <div class="body">
+    <div class="flex-between">
+      <span class="hint">Envio de habilitação</span>
+      <button class="sm" id="btn-req-enable">Solicitar (Bearer)</button>
+    </div>
+    <div class="row">
+      <div>
+        <label for="f-enable-email-code">Código recebido</label>
+        <input id="f-enable-email-code" class="code" type="text" maxlength="6" placeholder="000000" inputmode="numeric">
+      </div>
+      <button id="btn-fill-mail1">usar último</button>
+      <button class="primary" id="btn-enable-email">Habilitar Email OTP</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="flex-between">
+      <span class="hint">Envio no login (usa o mfaToken)</span>
+      <button class="sm" id="btn-req-login">Solicitar (mfaToken)</button>
+    </div>
+    <div class="row">
+      <div>
+        <label for="f-verify-code">Código para verificar</label>
+        <input id="f-verify-code" class="code" type="text" maxlength="6" placeholder="000000" inputmode="numeric">
+      </div>
+      <button id="btn-fill-mail2">usar último</button>
+      <div style="min-width: 110px;">
+        <label for="f-method">method</label>
+        <select id="f-method">
+          <option value="totp">totp</option>
+          <option value="email">email</option>
+        </select>
+      </div>
+      <button class="primary" id="btn-verify">Verificar MFA</button>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Recovery <span class="pill">uso único</span></h2>
+  <div class="body">
+    <div class="row">
+      <div>
+        <label for="f-recovery">Recovery code (XXXX-XXXX)</label>
+        <input id="f-recovery" type="text" placeholder="A1B2-C3D4" maxlength="9" style="text-transform:uppercase;">
+      </div>
+      <button id="btn-recovery">Trocar por accessToken</button>
+    </div>
+    <div class="hint">Reutilizar o mesmo código deve retornar <b style="color:var(--err)">401</b>.</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Desativar MFA</h2>
+  <div class="body">
+    <div class="row">
+      <div style="min-width:110px;">
+        <label for="f-disable-method">method</label>
+        <select id="f-disable-method"><option value="totp">totp</option><option value="email">email</option></select>
+      </div>
+      <div><label for="f-disable-pass">Senha atual</label><input id="f-disable-pass" type="text" value="Senha@123"></div>
+      <div><label for="f-disable-code">Código</label><input id="f-disable-code" class="code" type="text" maxlength="6" placeholder="000000" inputmode="numeric"></div>
+      <button class="danger" id="btn-disable">Desativar</button>
+    </div>
+    <div class="hint">Ao desativar <b>totp</b>, os recovery codes são invalidados em cascata.</div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Caixa de entrada <button class="ghost sm" id="btn-mail">atualizar</button></h2>
+  <div class="body">
+    <div class="hint" style="margin-top:-4px;">O Mailpit bloqueia CORS, então esta lista vem do proxy <code class="inline">GET /auth/lab/mail</code>. Clique no código para copiar.</div>
+    <div class="inbox" id="inbox"><div class="empty">carregando…</div></div>
+  </div>
+</section>
+
+<section class="card" style="grid-column: 1 / -1;">
+  <h2>Requisições <button class="ghost sm" id="btn-log-clear">limpar</button></h2>
+  <div class="body">
+    <div id="log"><div class="empty">nenhuma requisição ainda</div></div>
+  </div>
+</section>
+
+</main>
+
+<div id="toasts"></div>
+
+<script>
+'use strict';
+
+const STORE = '2fa-lab-panel';
+
+const state = {
+  base: '/auth/auth',
+  mailUi: 'http://localhost:8025',
+  accessToken: '',
+  mfaToken: '',
+  user: null,
+  otpauthUrl: '',
+  qrCodeDataUrl: '',
+  recoveryCodes: [],
+  logs: [],
+};
+
+const $ = (id) => document.getElementById(id);
+
+function save() {
+  const { base, mailUi, accessToken, mfaToken, user, otpauthUrl, qrCodeDataUrl, recoveryCodes, logs } = state;
+  localStorage.setItem(STORE, JSON.stringify({ base, mailUi, accessToken, mfaToken, user, otpauthUrl, qrCodeDataUrl, recoveryCodes, logs: logs.slice(-80) }));
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (!raw) return;
+    Object.assign(state, JSON.parse(raw));
+  } catch (err) {
+    console.warn('estado inválido no storage', err);
+  }
+}
+
+function toast(message, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`;
+  el.textContent = message;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+function b64urlDecode(segment) {
+  const padded = segment.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(padded + '==='.slice((padded.length + 3) % 4));
+  return decodeURIComponent(
+    binary.split('').map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  );
+}
+
+function decodeJwt(token) {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    return JSON.parse(b64urlDecode(parts[1]));
+  } catch (err) {
+    return null;
+  }
+}
+
+function expiryInfo(token) {
+  const payload = decodeJwt(token);
+  if (!payload || !payload.exp) return '';
+  const seconds = payload.exp - Math.floor(Date.now() / 1000);
+  if (seconds <= 0) return ' · EXPIRADO';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return ` · expira em ${m}m${String(s).padStart(2, '0')}s`;
+}
+
+function renderClaims(token, targetId) {
+  const payload = decodeJwt(token);
+  const box = $(targetId);
+  if (!payload) {
+    box.textContent = token ? 'payload ilegível' : '—';
+    return;
+  }
+  const rows = Object.entries(payload).map(([key, value]) => {
+    const shown = typeof value === 'string' && value.length > 40 ? value.slice(0, 37) + '…' : JSON.stringify(value);
+    return `<div><b>${escapeHtml(key)}</b> = ${escapeHtml(String(shown))}</div>`;
+  });
+  box.innerHTML = rows.join('') + `<div style="margin-top:6px;opacity:.7">${escapeHtml(expiryInfo(token))}</div>`;
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderSession() {
+  $('ta-access').value = state.accessToken;
+  $('ta-mfa').value = state.mfaToken;
+  renderClaims(state.accessToken, 'claims-access');
+  renderClaims(state.mfaToken, 'claims-mfa');
+
+  const pill = $('pill-session');
+  const hasAccess = Boolean(state.accessToken);
+  pill.textContent = hasAccess ? 'autenticado' : 'sem token';
+  pill.className = 'pill ' + (hasAccess ? 'on' : 'off');
+
+  const hasTotp = Boolean(state.user?.mfaEnabled);
+  const hasEmail = Boolean(state.user?.emailOtpEnabled);
+  const tp = $('pill-totp');
+  tp.textContent = hasTotp ? 'ativo' : 'inativo';
+  tp.className = 'pill ' + (hasTotp ? 'on' : 'off');
+
+  renderUser();
+}
+
+function renderUser() {
+  const box = $('user-info');
+  if (!state.user) {
+    box.textContent = '—';
+    return;
+  }
+  const u = state.user;
+  box.innerHTML = [
+    ['id', u.id],
+    ['email', u.email],
+    ['mfaEnabled', String(u.mfaEnabled)],
+    ['mfaSecret', String(u.mfaSecret)],
+    ['emailOtpEnabled', String(u.emailOtpEnabled)],
+  ].map(([k, v]) => `<div><b>${k}</b> = ${escapeHtml(v)}</div>`).join('');
+}
+
+function renderTotp() {
+  const box = $('totp-result');
+  if (!state.otpauthUrl) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'flex';
+  $('tp-otpauth').value = state.otpauthUrl;
+  const img = $('qr-img');
+  if (state.qrCodeDataUrl) {
+    img.src = state.qrCodeDataUrl;
+  } else {
+    img.removeAttribute('src');
+  }
+}
+
+function renderRecovery() {
+  const box = $('recovery-box');
+  if (!state.recoveryCodes.length) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  $('recovery-codes').innerHTML = state.recoveryCodes
+    .map((c) => `<button data-copy-text="${escapeHtml(c)}" title="copiar">${escapeHtml(c)}</button>`)
+    .join('');
+}
+
+function addLog(entry) {
+  state.logs.push(entry);
+  renderLog();
+}
+
+function renderLog() {
+  const box = $('log');
+  if (!state.logs.length) {
+    box.innerHTML = '<div class="empty">nenhuma requisição ainda</div>';
+    return;
+  }
+  const sorted = [...state.logs].reverse();
+  box.innerHTML = sorted.map((e) => {
+    const cls = e.status >= 500 ? 's5' : e.status >= 400 ? 's4' : 's2';
+    const detail = e.detail ? `<div class="log-body">${escapeHtml(e.detail)}</div>` : '';
+    return `<div class="log-item ${cls}">
+      <span class="log-time">${e.time}</span>
+      <span class="log-method">${e.method}</span>
+      <span class="log-path">${escapeHtml(e.path)}</span>
+      <span class="log-method" style="color:var(--${e.status >= 400 ? 'err' : 'ok'})">${e.status}</span>
+      ${detail}
+    </div>`;
+  }).join('');
+}
+
+async function api(method, path, options = {}) {
+  const url = state.base + path;
+  const headers = { Accept: 'application/json' };
+  let body;
+
+  if (options.auth === 'bearer') {
+    if (!state.accessToken) {
+      toast('Sem accessToken. Faça login ou registre primeiro.', 'err');
+      return null;
+    }
+    headers.Authorization = 'Bearer ' + state.accessToken;
+  }
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(options.body);
+  }
+
+  const started = performance.now();
+  let response;
+  let data = null;
+  let parseError = null;
+
+  try {
+    response = await fetch(url, { method, headers, body });
+  } catch (err) {
+    addLog({ time: stamp(), method, path, status: 0, detail: err.message });
+    toast('Falha de rede: ' + err.message, 'err');
+    return null;
+  }
+
+  const text = await response.text();
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      parseError = text.slice(0, 300);
+    }
+  }
+
+  const ms = Math.round(performance.now() - started);
+  addLog({
+    time: stamp(),
+    method,
+    path,
+    status: response.status,
+    detail: `${ms}ms · ${data ? summarize(data) : parseError || 'sem corpo'}`,
+  });
+
+  if (!response.ok) {
+    const msg = data?.message || parseError || `HTTP ${response.status}`;
+    toast(`${response.status} — ${Array.isArray(msg) ? msg.join(', ') : msg}`, 'err');
+  }
+
+  return { status: response.status, ok: response.ok, data };
+}
+
+function summarize(data) {
+  const text = JSON.stringify(data);
+  return text.length > 190 ? text.slice(0, 187) + '…' : text;
+}
+
+function stamp() {
+  return new Date().toLocaleTimeString('pt-BR', { hour12: false });
+}
+
+function absorb(result) {
+  if (!result || !result.data) return null;
+  const data = result.data;
+
+  if (typeof data.accessToken === 'string') {
+    state.accessToken = data.accessToken;
+    toast('accessToken obtido', 'ok');
+  }
+  if (typeof data.mfaToken === 'string') {
+    state.mfaToken = data.mfaToken;
+    toast('mfaToken emitido — MFA pendente', 'ok');
+  }
+  if (Array.isArray(data.availableMethods)) {
+    const select = $('f-method');
+    select.value = data.availableMethods.includes('email') ? 'email' : select.value;
+  }
+  if (Array.isArray(data.recoveryCodes)) {
+    state.recoveryCodes = data.recoveryCodes;
+    toast(data.recoveryCodes.length + ' recovery codes gerados', 'ok');
+  }
+  if (typeof data.otpauthUrl === 'string') {
+    state.otpauthUrl = data.otpauthUrl;
+  }
+  if (typeof data.qrCodeDataUrl === 'string') {
+    state.qrCodeDataUrl = data.qrCodeDataUrl;
+  }
+  if (data.emailOtpEnabled === true) {
+    state.user = { ...(state.user || {}), emailOtpEnabled: true };
+  }
+
+  save();
+  renderSession();
+  renderTotp();
+  renderRecovery();
+  return data;
+}
+
+async function refreshUser() {
+  const result = await api('GET', '/me', { auth: 'bearer' });
+  if (result?.ok && result.data) {
+    state.user = result.data;
+    save();
+    renderSession();
+  }
+  return result;
+}
+
+function base32ToBytes(input) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  const clean = input.toUpperCase().replace(/[\s=]/g, '');
+  let bits = '';
+  for (const char of clean) {
+    const index = alphabet.indexOf(char);
+    if (index === -1) throw new Error('segredo base32 inválido');
+    bits += index.toString(2).padStart(5, '0');
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  }
+  return new Uint8Array(bytes);
+}
+
+async function generateTotp(secret, counter) {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    base32ToBytes(secret),
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  view.setUint32(0, Math.floor(counter / 0x100000000));
+  view.setUint32(4, counter >>> 0);
+
+  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, buffer));
+  const offset = signature[signature.length - 1] & 0x0f;
+  const binary =
+    ((signature[offset] & 0x7f) << 24) |
+    ((signature[offset + 1] & 0xff) << 16) |
+    ((signature[offset + 2] & 0xff) << 8) |
+    (signature[offset + 3] & 0xff);
+
+  return String(binary % 1000000).padStart(6, '0');
+}
+
+function currentSecret() {
+  if (!state.otpauthUrl) return '';
+  try {
+    return new URL(state.otpauthUrl).searchParams.get('secret') || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+async function tickTotp() {
+  if (!state.otpauthUrl) return;
+  const secret = currentSecret();
+  const label = $('totp-live');
+  if (!secret) {
+    label.textContent = '??????';
+    $('totp-meta').textContent = 'segredo não encontrado na otpauthUrl';
+    return;
+  }
+  try {
+    const step = Math.floor(Date.now() / 1000 / 30);
+    const remaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    label.textContent = await generateTotp(secret, step);
+    $('totp-bar').style.width = (remaining / 30 * 100) + '%';
+    $('totp-meta').textContent = `expira em ${remaining}s · passo ${step}`;
+  } catch (err) {
+    label.textContent = '??????';
+    $('totp-meta').textContent = err.message;
+  }
+}
+
+async function loadMail() {
+  const box = $('inbox');
+  try {
+    const response = await fetch('/auth/lab/mail');
+    const data = await response.json();
+
+    if (!response.ok) {
+      box.innerHTML = `<div class="empty">${escapeHtml(data?.message || 'Mailpit indisponível')}</div>`;
+      return;
+    }
+    if (!Array.isArray(data) || !data.length) {
+      box.innerHTML = '<div class="empty">nenhuma mensagem recebida</div>';
+      return;
+    }
+
+    box.innerHTML = data.map((m) => `
+      <div class="msg">
+        <div class="msg-top">
+          <span class="msg-subj">${escapeHtml(m.subject)}</span>
+          <span class="msg-meta">${escapeHtml(new Date(m.created).toLocaleTimeString('pt-BR', { hour12: false }))}</span>
+        </div>
+        <div class="msg-meta">${escapeHtml(m.from)} → ${escapeHtml(m.to.join(', '))}</div>
+        <button class="chip ${m.code ? '' : 'none'}" ${m.code ? `data-copy-text="${m.code}" title="copiar código"` : ''}>${escapeHtml(m.code || 'sem código de 6 dígitos')}</button>
+        <pre>${escapeHtml(m.text)}</pre>
+      </div>
+    `).join('');
+
+    const newest = data.find((m) => m.code);
+    if (newest) state.lastMailCode = newest.code;
+  } catch (err) {
+    box.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('copiado: ' + text.slice(0, 44), 'ok');
+  } catch (err) {
+    toast('não foi possível copiar', 'err');
+  }
+}
+
+function wire() {
+  $('cfg-base').addEventListener('change', (e) => { state.base = e.target.value.trim().replace(/\/$/, ''); save(); });
+  $('cfg-mail').addEventListener('change', (e) => { state.mailUi = e.target.value.trim().replace(/\/$/, ''); save(); });
+
+  $('btn-health').addEventListener('click', async () => {
+    toast('testando GET /me (401 = API no ar)', 'info');
+    await api('GET', '/me');
+    loadMail();
+  });
+
+  $('btn-clear').addEventListener('click', () => {
+    Object.assign(state, { accessToken: '', mfaToken: '', user: null, otpauthUrl: '', qrCodeDataUrl: '', recoveryCodes: [], logs: [] });
+    save();
+    renderSession();
+    renderTotp();
+    renderRecovery();
+    renderLog();
+    toast('sessão limpa', 'info');
+  });
+
+  $('btn-register').addEventListener('click', async () => {
+    absorb(await api('POST', '/register', {
+      body: { email: $('f-email').value.trim(), password: $('f-pass').value },
+    }));
+    refreshUser();
+  });
+
+  $('btn-login').addEventListener('click', async () => {
+    const data = absorb(await api('POST', '/login', {
+      body: { email: $('f-email').value.trim(), password: $('f-pass').value },
+    }));
+    if (data?.requiresMfa) toast('MFA obrigatório — solicitede o código abaixo', 'info');
+    refreshUser();
+  });
+
+  $('btn-me').addEventListener('click', refreshUser);
+
+  $('btn-setup').addEventListener('click', async () => {
+    const data = absorb(await api('GET', '/mfa/setup', { auth: 'bearer' }));
+    if (data?.otpauthUrl) {
+      toast('segredo gerado — use o código abaixo', 'ok');
+      tickTotp();
+    }
+  });
+
+  $('btn-fill-totp').addEventListener('click', async () => {
+    await tickTotp();
+    $('f-enable-code').value = $('totp-live').textContent;
+    toast('código TOTP copiado para o campo', 'ok');
+  });
+
+  $('btn-enable-mfa').addEventListener('click', async () => {
+    absorb(await api('POST', '/mfa/enable', {
+      auth: 'bearer',
+      body: { code: $('f-enable-code').value.trim() },
+    }));
+    refreshUser();
+  });
+
+  $('btn-copy-recovery').addEventListener('click', () => copy(state.recoveryCodes.join('\n')));
+
+  $('btn-req-enable').addEventListener('click', async () => {
+    absorb(await api('POST', '/mfa/enable-email/request', { auth: 'bearer' }));
+    setTimeout(loadMail, 350);
+  });
+
+  $('btn-enable-email').addEventListener('click', async () => {
+    absorb(await api('POST', '/mfa/enable-email', {
+      auth: 'bearer',
+      body: { code: $('f-enable-email-code').value.trim() },
+    }));
+    loadMail();
+    refreshUser();
+  });
+
+  $('btn-req-login').addEventListener('click', async () => {
+    if (!state.mfaToken) { toast('Faça login primeiro para receber um mfaToken', 'err'); return; }
+    absorb(await api('POST', '/mfa/request-email', { body: { mfaToken: state.mfaToken } }));
+    setTimeout(loadMail, 350);
+  });
+
+  $('btn-verify').addEventListener('click', async () => {
+    if (!state.mfaToken) { toast('Sem mfaToken. Faça login.', 'err'); return; }
+    absorb(await api('POST', '/mfa/verify', {
+      body: {
+        mfaToken: state.mfaToken,
+        code: $('f-verify-code').value.trim(),
+        method: $('f-method').value,
+      },
+    }));
+  });
+
+  $('btn-recovery').addEventListener('click', async () => {
+    if (!state.mfaToken) { toast('Sem mfaToken. Faça login.', 'err'); return; }
+    absorb(await api('POST', '/mfa/recovery', {
+      body: { mfaToken: state.mfaToken, code: $('f-recovery').value.trim().toUpperCase() },
+    }));
+  });
+
+  $('btn-disable').addEventListener('click', async () => {
+    await api('POST', '/mfa/disable', {
+      auth: 'bearer',
+      body: {
+        password: $('f-disable-pass').value,
+        method: $('f-disable-method').value,
+        code: $('f-disable-code').value.trim(),
+      },
+    });
+    refreshUser();
+  });
+
+  $('btn-mail').addEventListener('click', loadMail);
+  $('btn-log-clear').addEventListener('click', () => { state.logs = []; renderLog(); });
+
+  $('btn-fill-mail1').addEventListener('click', async () => {
+    await loadMail();
+    if (!state.lastMailCode) { toast('nenhum código na inbox', 'err'); return; }
+    $('f-enable-email-code').value = state.lastMailCode;
+    toast('código da inbox preenchido', 'ok');
+  });
+
+  $('btn-fill-mail2').addEventListener('click', async () => {
+    await loadMail();
+    if (!state.lastMailCode) { toast('nenhum código na inbox', 'err'); return; }
+    $('f-verify-code').value = state.lastMailCode;
+    toast('código da inbox preenchido', 'ok');
+  });
+
+  document.addEventListener('click', (event) => {
+    const copyText = event.target.closest('[data-copy-text]');
+    if (copyText) { copy(copyText.dataset.copyText); return; }
+    const copyBox = event.target.closest('[data-copy]');
+    if (copyBox) { copy($(copyBox.dataset.copy).value); return; }
+  });
+
+  for (const id of ['f-enable-code', 'f-enable-email-code', 'f-verify-code', 'f-disable-code']) {
+    $(id).addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); });
+  }
+  $('f-recovery').addEventListener('input', (e) => {
+    const clean = e.target.value.toUpperCase().replace(/[^A-F0-9]/g, '').slice(0, 8);
+    e.target.value = clean.length > 4 ? clean.slice(0, 4) + '-' + clean.slice(4) : clean;
+  });
+}
+
+function boot() {
+  load();
+  $('cfg-base').value = state.base;
+  $('cfg-mail').value = state.mailUi;
+  renderSession();
+  renderTotp();
+  renderRecovery();
+  renderLog();
+  wire();
+  tickTotp();
+  setInterval(tickTotp, 1000);
+  loadMail();
+}
+
+boot();
+</script>
+</body>
+</html>
